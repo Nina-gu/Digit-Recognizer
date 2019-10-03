@@ -1,0 +1,268 @@
+---
+title: "Digit Recognizer"
+author: "Nina Gu"
+date: "3/5/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In this project, I have two datasets, one is the train dataset, which is used for train each digit and to get the model. Another dataset is test dataset which is used for test the models and to examine the accuracy of the models. 
+```{r read_data}
+library(lattice)
+library(ggplot2)
+library(gower)
+library(caret)
+train <- read.csv("/yuhe/Document/MNIST-data/train.csv")
+test <- read.csv("/yuhe/Document/MNIST-data/test.csv")
+```
+
+The function rotate and plot_matrix provide us to plot one row from the dataset into an image. 
+```{r plot_image}
+#If you want to see the image encoded in each row, you can use the following functions:
+rotate <- function(x) {
+  return(t(apply(x, 2, rev)))
+}
+plot_matrix <- function(vec) {
+  q <- matrix(vec, 28, 28, byrow = TRUE)
+  nq <- apply(q, 2, as.numeric)
+  image(rotate(nq), col = gray((0:255)/255))
+}
+#If you want to plot the third image, for example, you can call the plot function as follows:
+plot_matrix(train[555, 2:785])
+```
+
+
+##Logistic Regression
+
+Step 1. 
+For each digit:
+a. Relabel each row with a 1 if it corresponds to the digit you are training for, and 0 otherwise.
+
+Because I have to train ten different digits (0-9), I create ten train dataset (train0 - train9) to save the data. For example, in "train2", I am training for the digit "2", so if the lable is "2", relable it to 1, and 0 otherwise. 
+```{r relabel}
+colnames(train)[1] = "label"
+colnames(test)[1] = "label"
+names(train)[2:length(train)] <- paste("pixel", c(1:(length(train) - 1)))
+names(test)[2:length(train)] <- paste("pixel", c(1:(length(test) - 1)))
+train0 <- train
+train1 <- train
+train2 <- train
+train3 <- train
+train4 <- train
+train5 <- train
+train6 <- train
+train7 <- train
+train8 <- train
+train9 <- train
+
+#relabel
+train0[, 1] = ifelse(train0$label == "0", 1, 0)
+train1[, 1] = ifelse(train1$label == "1", 1, 0)
+train2[, 1] = ifelse(train2$label == "2", 1, 0)
+train3[, 1] = ifelse(train3$label == "3", 1, 0)
+train4[, 1] = ifelse(train4$label == "4", 1, 0)
+train5[, 1] = ifelse(train5$label == "5", 1, 0)
+train6[, 1] = ifelse(train6$label == "6", 1, 0)
+train7[, 1] = ifelse(train7$label == "7", 1, 0)
+train8[, 1] = ifelse(train8$label == "8", 1, 0)
+train9[, 1] = ifelse(train9$label == "9", 1, 0)
+```
+
+b. Train a logistic regression model that predicts the label as a function of the image pixels: Label~Pixel1+Pixel2+Pixel3+ …+Pixel784
+
+I use glm() function to train logistic regression model. The ten models respectively refer to the ten digits (0-9). 
+The fist time I train the logistic regression model, because there are "NA"s in the model, the predict function could not be uses. (Error: Pixel1 not found). 
+To solve the error, glm() has an argument na.action which indicates which of the following generic functions should be used by glm to handle NA in the data: na.exclude is used some functions will pad residuals and predictions to the correct length by inserting NAs for omitted cases. 
+```{r models}
+model0 <- glm(label~., data = train0, family = "binomial", na.action = na.exclude)
+model1 <- glm(label~., data = train1, family = "binomial", na.action = na.exclude)
+model2 <- glm(label~., data = train2, family = "binomial", na.action = na.exclude)
+model3 <- glm(label~., data = train3, family = "binomial", na.action = na.exclude)
+model4 <- glm(label~., data = train4, family = "binomial", na.action = na.exclude)
+model5 <- glm(label~., data = train5, family = "binomial", na.action = na.exclude)
+model6 <- glm(label~., data = train6, family = "binomial", na.action = na.exclude)
+model7 <- glm(label~., data = train7, family = "binomial", na.action = na.exclude)
+model8 <- glm(label~., data = train8, family = "binomial", na.action = na.exclude)
+model9 <- glm(label~., data = train9, family = "binomial", na.action = na.exclude)
+```
+
+
+Step 2. 
+
+Respectively, I test the ten models using predict() function. The results of predict0 - predict9 are the probability of the rows in "test" dataset will be 0 - 9. Then, I combine the ten vectors of predict probabilities into one dataset "predict_number" and rename the colomns with the certain digits. Following that, I use apply() function to find the maximum probability in rach rows, and the results are saved in the array y. In additino, I use as.data.frame() function to convert the type into data frame. Finally, predict_actual is the results of comparison between predict digits and actual digits. We can see this results below, and I calculate the accuracy using simple caculation. 
+```{r test}
+predict0 <- predict(model0, test, type = "response")
+predict1 <- predict(model1, test, type = "response")
+predict2 <- predict(model2, test, type = "response")
+predict3 <- predict(model3, test, type = "response")
+predict4 <- predict(model4, test, type = "response")
+predict5 <- predict(model5, test, type = "response")
+predict6 <- predict(model6, test, type = "response")
+predict7 <- predict(model7, test, type = "response")
+predict8 <- predict(model8, test, type = "response")
+predict9 <- predict(model9, test, type = "response")
+
+predict_number <- cbind(predict0, predict1, predict2, predict3, predict4, predict5, predict6, predict7, predict8, predict9)
+colnames(predict_number) <- c("0", "1", "2", "3", "4", "5", "6", "7", "8", "9")
+y <- apply(predict_number, 1, function(t)colnames(predict_number)[which.max(t)])
+y <- as.data.frame(y)
+predict_actual <- cbind(y, test$label)
+predict_actual <- as.data.frame(predict_actual)
+colnames(predict_actual) <- c("predict", "actual")
+head(predict_actual)
+
+accuracy <- sum(predict_actual$predict == predict_actual$actual)/nrow(test)
+accuracy
+
+```
+
+Step 3. 
+Create a confusion matrix with the counts of the correct and incorrect classifications.
+
+In the package "caret", there is a function confusionMatrix() to calculate a cross-tabulation of observed and predicted classes with associated statistics.
+The statistics results show the performance evaluation of the models. With high Sensitivity and Specificity, the models are good. 
+```{r confusion_matrix}
+
+predict_actual$predict <- as.factor(predict_actual$predict)
+predict_actual$actual <- as.factor(predict_actual$actual)
+confusionMatrix(predict_actual$predict, predict_actual$actual, dnn = c("predict", "actual"))
+
+```
+
+
+##Random Forest
+1. Train a random forest model.
+```{r randomForest_model}
+library(randomForest)
+
+colnames(train)[1] = "label"
+colnames(test)[1] = "label"
+
+train$label <- as.factor(train$label)
+test$label <- as.factor(test$label)
+
+model_randomForest <- randomForest(label ~ ., data = train, ntree = 10)
+
+```
+
+
+2. Test the model on the test set. 
+```{r confusion_matrix}
+
+predict_RF <- predict(model_randomForest, test, type="response",
+  norm.votes=TRUE, predict.all=FALSE, proximity=FALSE, nodes=FALSE)
+
+library(lattice)
+library(ggplot2)
+library(caret)
+
+confusionMatrix(predict_RF, test$label, dnn = c("predict", "actual"))
+
+```
+With ntree = 10, I got a good results of random forest prediction, so I will not try more trees with changing the parameter ntree. 
+
+
+##Naive Bayes
+
+```{r train_test_function}
+
+## Training function
+naive_bayes_training <- function(training_set) {
+  
+  ## Label frequency
+  freq <- table(training_set[,1])
+  ## Priors
+  priors <- freq/sum(freq)
+  ##Training
+  means <- data.frame(label = seq(0,9))
+  mu <- matrix(rep(0, 10*784), nrow = 10, ncol = 784)
+  means <- cbind(means,mu)
+  
+  variances <- data.frame(label = seq(0,9))
+  sigma <- matrix(rep(0, 10*784), nrow = 10, ncol = 784)
+  variances <- cbind(variances, sigma)
+  
+  # For each label, calculate images representing the mean and variances of all the images belonging to a label.
+  for (i in 0:9) {
+    class_set <- training_set[which(training_set[,1] == i),]
+    class_mean <- apply(class_set, 2, mean)
+    plot_matrix(class_mean[2:785])
+    means[i + 1, 2:785] <- class_mean[2:785]
+    class_var <- apply(class_set, 2, var)
+    plot_matrix(class_var[2:785])
+    variances[i + 1, 2:785] <- class_var[2:785]
+  }
+  
+  #Returns data "ingredients" that when put together form a Naive Bayes model
+  return(list(priors = priors, means = means, variances = variances))
+  
+}
+
+## Testing function
+naive_bayes_testing <- function(model, test_set) 
+{
+  #Testing
+  error_matrix <- matrix(rep(0,100), 10, 10)
+  #Classifies all test cases one by one
+  for (i in 1:nrow(test_set)) {
+    #Test case
+    test_vector <- test_set[i,2:785]
+    
+    #Calculates the posterior probabilities associated with all the digits
+    #The classfication is the one with the highest posterior.
+    posteriors <- rep(0,10)
+    
+    for (j in 1:10) {
+    #Corresponding mean and variance vector
+      m <- model$means[j,]
+      v <- model$variances[j,]
+      
+      likelihood <- 0
+      
+      for (k in 1:784) {
+        if (v[[k]] > 0) {
+          likelihood <- likelihood + log(dnorm(test_vector[[k]], m[[k]], sqrt(v[[k]])))
+       }
+      }
+      
+      posteriors[j] <- likelihood + log(model$priors[j])
+    }
+    
+   actual <- test_set[[i, 1]] + 1
+   predicted <- which.max(posteriors)
+    #Stores actual vs, predicted count
+    error_matrix[actual, predicted] <- error_matrix[actual, predicted] + 1
+  }
+  return(error_matrix)
+}
+
+## Calculates the classification success rate as the sum of successfully classified digits over all test cases
+classification_error <- function(error_matrix){
+  accuracy <- sum(diag(error_matrix))/sum(error_matrix)
+}
+
+countMax <- function(vec){
+  return(vec %>% table() %>% which.max() %>% names() %>% as.integer())
+}
+
+```
+
+```{r run_model}
+
+training_set <- read.csv("mnist_train.csv", sep = ",", header = FALSE)
+test_set <- read.csv("mnist_test.csv", sep = ",", header = FALSE)
+
+model <- naive_bayes_training(training_set)
+error_matrix <- naive_bayes_testing(model, test_set[1:500,])
+error <- classification_error(error_matrix)
+print(error_matrix)
+print(error)
+
+```
+
+From the three methods, random forest has the highest accuracy, which is much better than logistic regression and naive bayes. 
+Random forest gives better results with the increasing number of examples. It might be used for clustering, statistical inference and feature selection as well, and it Works good with numerical, categorical data.
+As its name Naive Bayes is based on naive assumptions that re not generally concordant with the data (exp: All the variables are uncorrelated to each other, but generally it is not true). It is really fragile to overfitting without any regularization assumption. 
